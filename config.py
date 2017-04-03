@@ -45,6 +45,6 @@ run_params = {
     'upper': 0.7,
     'step': 0.1,
     'test': 0.3,
-    'repetitions': 100,
+    'repetitions': 50,
     'folds': 10
 }

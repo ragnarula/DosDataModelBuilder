@@ -145,7 +145,7 @@ class IterativeGridSearch:
 
         for pipe, res in self.result_rows.items():
 
-            if len(res) > 100 or force:
+            if len(res) >= 10 or force:
                 header = True
                 file_path = os.path.join(self.results_dir, "results_{}.csv".format(pipe))
 
