@@ -158,6 +158,8 @@ class IterativeGridSearch:
                     df = pd.DataFrame(res)
                     df.to_csv(f, header=header, index=False)
 
+                self.result_rows[pipe] = []
+
     @staticmethod
     def metric_from_result(res, metric_func, **kwargs):
         return metric_func(res['y'], res['y_pred'], **kwargs)
