@@ -8,12 +8,13 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 class MultiPipelineResultGenerator:
 
-    def __init__(self, df, class_label, case_iterator, pipelines, n_folds=10):
+    def __init__(self, df, class_label, case_iterator, pipelines, n_folds=10, n_processors=-1):
         self.df = df
         self.case_iterator = case_iterator
         self.pipelines = pipelines
         self.folds = n_folds
         self.class_label = class_label
+        self.n_processors = n_processors
         self.logger = logging.getLogger(__name__ + ":MultiPipelineResultGenerator")
 
     def pipeline_results(self, case):
@@ -35,7 +36,7 @@ class MultiPipelineResultGenerator:
             self.logger.info('Running pipeline {}'.format(pipe['name']))
             search = GridSearchCV(pipe['pipeline'],
                                   pipe['params'],
-                                  n_jobs=-1,
+                                  n_jobs=self.n_processors,
                                   scoring='f1_macro',
                                   cv=self.folds)
 

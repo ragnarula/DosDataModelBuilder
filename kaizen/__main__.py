@@ -56,7 +56,8 @@ def main():
                                                            class_label=args.class_label,
                                                            case_iterator=case_generator.get_iterator(),
                                                            pipelines=config.pipelines,
-                                                           n_folds=config.run_params['folds'])
+                                                           n_folds=config.run_params['folds'],
+                                                           n_processors=config.run_params['threads'])
 
     csv_writer = kaizen.CSVPerPipelineResultWriter(result_iterator=result_generator.get_iterator(),
                                                    results_dir=args.results_dir)

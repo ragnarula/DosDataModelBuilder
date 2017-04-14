@@ -13,7 +13,6 @@ svc_linear_params = [
 pca_svc_linear_params = [
     {
         'pca__n_components': [2, 3, 4, 5, 6],
-        'pca__whiten': [True],
         'svm__kernel': ['linear'],
         'svm__C': [x ** y for x, y in zip([2] * 31, range(-15, 16, 1))]
     }
@@ -63,5 +62,6 @@ run_params = {
     'step': 0.1,
     'test': 0.3,
     'repetitions': 1,
-    'folds': 10
+    'folds': 10,
+    'threads': 1
 }
