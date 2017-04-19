@@ -8,6 +8,8 @@ from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.dummy import DummyClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 
 class MultiPipelineResultGenerator:
@@ -95,13 +97,20 @@ class MultiPipelineResultGenerator:
 
 class Experiment1ResultGenerator:
 
-    def __init__(self, df, class_label, pos_label, kernel, c_values):
+    def __init__(self, df, class_label, pos_label, kernel, c_values, with_scaler=True):
         self.df = df
         self.class_label = class_label
         self.logger = logging.getLogger(__name__ + ":Experiment1ResultGenerator")
         self.c_values = c_values
         self.kernel = kernel
         self.pos_label = pos_label
+        svc = SVC(kernel=kernel)
+        scaler = StandardScaler()
+
+        if with_scaler:
+            self.pipeline = Pipeline(steps=[('scaler', scaler), ('svc', svc)])
+        else:
+            self.pipeline = Pipeline(steps=[('svc', svc)])
 
     def get_cases(self, case):
         for c in self.c_values:
@@ -126,7 +135,7 @@ class Experiment1ResultGenerator:
         x_test = test.drop([self.class_label], axis=1)
         y_test = test[self.class_label]
 
-        svc = SVC(C=c, kernel=self.kernel)
+        # svc = SVC(C=c, kernel=self.kernel)
         dummy = DummyClassifier()
         dummy.fit(x_train, y_train)
         p_dummy = dummy.predict(x_test)
@@ -145,17 +154,17 @@ class Experiment1ResultGenerator:
             fold_x_val = x_train.ix[fold_idx_val]
             y_val.extend(y_train.ix[fold_idx_val])
 
-            svc.fit(fold_x_train, fold_y_train)
+            self.pipeline.set_params(svc__C=c).fit(fold_x_train, fold_y_train)
 
-            fold_p_train = svc.predict(fold_x_train)
+            fold_p_train = self.pipeline.predict(fold_x_train)
 
             cv_p_train.extend(fold_p_train)
             cv_y_train.extend(fold_y_train)
 
-            p_val.extend(svc.predict(fold_x_val))
+            p_val.extend(self.pipeline.predict(fold_x_val))
 
-        svc.fit(x_train, y_train)
-        p_test = pd.Series(svc.predict(x_test))
+        self.pipeline.set_params(svc__C=c).fit(x_train, y_train)
+        p_test = pd.Series(self.pipeline.predict(x_test))
 
         return self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, p_dummy, c)
 
@@ -230,13 +239,21 @@ class Experiment1ResultGenerator:
 
 class Experiment2ResultGenerator:
 
-    def __init__(self, df, class_label, pos_label, kernel, params):
+    def __init__(self, df, class_label, pos_label, kernel, params, with_scaler=True):
         self.df = df
         self.class_label = class_label
         self.logger = logging.getLogger(__name__ + ":Experiment2ResultGenerator")
         self.params = params
         self.kernel = kernel
         self.pos_label = pos_label
+
+        svc = SVC(kernel=kernel)
+        scaler = StandardScaler()
+
+        if with_scaler:
+            self.pipeline = Pipeline(steps=[('scaler', scaler), ('svc', svc)])
+        else:
+            self.pipeline = Pipeline(steps=[('svc', svc)])
 
     def get_cases(self, case):
         params = (dict(zip(self.params, x)) for x in itertools.product(*self.params.values()))
@@ -262,7 +279,7 @@ class Experiment2ResultGenerator:
         x_test = test.drop([self.class_label], axis=1)
         y_test = test[self.class_label]
 
-        svc = SVC(**params, kernel=self.kernel)
+        # svc = SVC(**params, kernel=self.kernel)
         dummy = DummyClassifier()
         dummy.fit(x_train, y_train)
         p_dummy = dummy.predict(x_test)
@@ -281,19 +298,135 @@ class Experiment2ResultGenerator:
             fold_x_val = x_train.ix[fold_idx_val]
             y_val.extend(y_train.ix[fold_idx_val])
 
-            svc.fit(fold_x_train, fold_y_train)
+            self.pipeline.set_params(**params).fit(fold_x_train, fold_y_train)
 
-            fold_p_train = svc.predict(fold_x_train)
+            fold_p_train = self.pipeline.predict(fold_x_train)
 
             cv_p_train.extend(fold_p_train)
             cv_y_train.extend(fold_y_train)
 
-            p_val.extend(svc.predict(fold_x_val))
+            p_val.extend(self.pipeline.predict(fold_x_val))
 
-        svc.fit(x_train, y_train)
-        p_test = pd.Series(svc.predict(x_test))
+        self.pipeline.set_params(**params).fit(x_train, y_train)
+        p_test = pd.Series(self.pipeline.predict(x_test))
 
         return self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, p_dummy, params)
+
+    def extract_cv_metrics(self, y_train, p_train, y_val, p_val, y_test, p_test, p_dummy, params):
+
+        res = {
+            "train_accuracy": accuracy_score(y_train, p_train),
+            "train_f1": f1_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_precision": precision_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_recall": recall_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "val_accuracy": accuracy_score(y_val, p_val),
+            "val_f1": f1_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_precision": precision_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_recall": recall_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "test_accuracy": accuracy_score(y_test, p_test),
+            "test_f1": f1_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_precision": precision_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_recall": recall_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "dummy_accuracy": accuracy_score(y_test, p_dummy),
+            "dummy_f1": f1_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_precision": precision_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_recall": recall_score(y_test, p_dummy, average='macro', pos_label=self.pos_label)
+        }
+        res.update(params)
+        return res
+
+    @staticmethod
+    def flat_map(f, items):
+        return itertools.chain.from_iterable(map(f, items))
+
+    @staticmethod
+    def pool_flat_map(pool, f, items):
+        return itertools.chain.from_iterable(pool.imap_unordered(f, items))
+
+    def get_iterator(self, pool, case_iterator):
+        results = self.flat_map(self.get_cases, case_iterator)
+        results = pool.imap_unordered(self.fit_predict, results)
+        return results
+
+
+class Experiment3ResultGenerator:
+
+    def __init__(self, df, class_label, pos_label, kernel, params, with_scaler=True):
+        self.df = df
+        self.class_label = class_label
+        self.logger = logging.getLogger(__name__ + ":Experiment3ResultGenerator")
+        self.params = params
+        self.kernel = kernel
+        self.pos_label = pos_label
+
+        svc = SVC(kernel=kernel)
+        scaler = StandardScaler()
+
+        if with_scaler:
+            self.pipeline = Pipeline(steps=[('scaler', scaler), ('svc', svc)])
+        else:
+            self.pipeline = Pipeline(steps=[('svc', svc)])
+
+    def get_cases(self, case):
+        params = (dict(zip(self.params, x)) for x in itertools.product(*self.params.values()))
+        for p in params:
+            yield (p, case)
+
+    def fit_predict(self, c_case):
+        params, case = c_case
+        ixs_train, ixs_test = case
+        num_training_samples = len(ixs_train)
+
+        self.logger.info('Starting {} sample run'.format(num_training_samples))
+
+        train = self.df.ix[ixs_train]
+        test = self.df.ix[ixs_test]
+
+        train = train.reset_index()
+        test = test.reset_index()
+
+        x_train = train.drop([self.class_label], axis=1)
+        y_train = train[self.class_label]
+
+        x_test = test.drop([self.class_label], axis=1)
+        y_test = test[self.class_label]
+
+        # svc = SVC(**params, kernel=self.kernel)
+        dummy = DummyClassifier()
+        dummy.fit(x_train, y_train)
+        p_dummy = dummy.predict(x_test)
+
+        kf = KFold(n_splits=10)
+
+        y_val = []
+        p_val = []
+        cv_y_train = []
+        cv_p_train = []
+
+        for fold_idx_train, fold_idx_val in kf.split(train):
+            fold_x_train = x_train.ix[fold_idx_train]
+            fold_y_train = y_train.ix[fold_idx_train]
+
+            fold_x_val = x_train.ix[fold_idx_val]
+            y_val.extend(y_train.ix[fold_idx_val])
+
+            self.pipeline.set_params(**params).fit(fold_x_train, fold_y_train)
+
+            fold_p_train = self.pipeline.predict(fold_x_train)
+
+            cv_p_train.extend(fold_p_train)
+            cv_y_train.extend(fold_y_train)
+
+            p_val.extend(self.pipeline.predict(fold_x_val))
+
+        self.pipeline.set_params(**params).fit(x_train, y_train)
+        p_test = pd.Series(self.pipeline.predict(x_test))
+
+        metrics = self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, p_dummy, params)
+
+        metrics.update({'train_size': len(train.index), 'test_size': len(test.index)})
+
+        return metrics
 
     def extract_cv_metrics(self, y_train, p_train, y_val, p_val, y_test, p_test, p_dummy, params):
 

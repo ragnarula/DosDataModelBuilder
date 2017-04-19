@@ -6,17 +6,17 @@ import datetime
 import pandas as pd
 import os
 import multiprocessing as mp
-from kaizen import RandomShuffleCaseGenerator, Experiment2ResultGenerator, CSVResultWriter
+from kaizen import AscendingSizeCaseGenerator, Experiment3ResultGenerator, CSVResultWriter
 
 
 pool = mp.Pool()
 
 params = {
-    'svc__C': [x ** y for x, y in zip([2] * 31, range(-15, 15, 1))],
-    'svc__gamma': [x ** y for x, y in zip([2] * 31, range(-15, 16, 1))]
+    'C': [4096],
+    'gamma': [0.00390625]
 }
 
-prefix = 'experiment-2'
+prefix = 'experiment-3'
 
 
 # From http://stackoverflow.com/questions/2113427/determining-whether-a-directory-is-writeable
@@ -33,8 +33,8 @@ def is_writable(path):
 
 
 def get_result_iterator(group, data, pos, reps):
-    normal_flood_case_generator = RandomShuffleCaseGenerator(data, 'Class', repetitions=reps)
-    normal_flood_result_generator = Experiment2ResultGenerator(data, 'Class', pos, 'rbf', params)
+    normal_flood_case_generator = AscendingSizeCaseGenerator(data, 'Class', repetitions=reps)
+    normal_flood_result_generator = Experiment3ResultGenerator(data, 'Class', pos, 'rbf', params)
     results = normal_flood_result_generator.get_iterator(pool, normal_flood_case_generator.get_iterator())
     results = map(lambda x: dict({'group': group}, **x), results)
     return results
