@@ -4,8 +4,9 @@ import tempfile
 import pandas as pd
 import glob
 import os
+import numpy as np
 import matplotlib.pyplot as plt
-
+from mpl_toolkits.mplot3d import Axes3D
 
 # From http://stackoverflow.com/questions/2113427/determining-whether-a-directory-is-writeable
 def is_writable(path):
@@ -58,6 +59,7 @@ def main():
         "dummy_recall"
     ]
 
+    ticks = [x ** y for x, y in zip([2] * 31, range(-15, 15, 1))]
     for file in all_csv_files:
 
         file_name = os.path.basename(file)
@@ -73,21 +75,53 @@ def main():
 
             os.makedirs(os.path.join(results_dir, 'figs', data_set_name), exist_ok=True)
             fig_file_name = '{}_{}_{}.png'.format(prefix, data_set_name, metric)
-
             print(fig_file_name)
+
             df = pd.read_csv(file, index_col=None, header=0)
-            both = df.boxplot(by='c', column=[metric], return_type='both')
 
-            ax, lines = both[0]
+            pivoted = df.pivot(index='C', columns='gamma', values=metric)
+            # pivoted.columns = np.log2(pivoted.columns)
+            # pivoted.index = np.log2(pivoted.index)
+
+            X, Y = np.meshgrid(np.log2(pivoted.columns), np.log2(pivoted.index))
+
+            fig = plt.figure()
+
+            plt.suptitle('{} - {} data - {}'.format(title, data_set_tile, metric.replace('_', ' ').title()))
+            ax = Axes3D(fig)
+
+            ax.set_xlabel('log2 gamma')
+            ax.set_ylabel('log2 C')
+            ax.set_zlabel(metric.replace('_', ' ').title())
+            surf = ax.plot_surface(X, Y, pivoted, rstride=1, cstride=1, cmap='rainbow',
+                                   linewidth=0, antialiased=False)
+
+            # plt.show()
+            fig.savefig(os.path.join(results_dir, 'figs', data_set_name, fig_file_name))
+            plt.close()
+
+            max = np.argmax(pivoted.as_matrix())
+            c_max, gamma_max = np.unravel_index(max, pivoted.as_matrix().shape)
+
+            c_max = pivoted.index[c_max]
+            gamma_max = pivoted.columns[gamma_max]
+
+            filtered = df[(df.C == c_max) & (df.gamma == gamma_max)]
+
+            ax, lines = filtered.boxplot(column=test_dummy_metrics, return_type='both')
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
-
-            plt.suptitle('{} - {}'.format(title, data_set_tile))
-
+            ax.set_title('C = {}, gamma = {}'.format(str(c_max), str(gamma_max)))
+            plt.suptitle('{} - {} Test Metrics'.format(title, data_set_tile))
             fig = ax.get_figure()
             fig.tight_layout()
             plt.subplots_adjust(top=0.9)
+
+            fig_file_name = '{}_{}_{}_best={}.png'.format(prefix, data_set_name, 'test_metrics', metric)
+            print(fig_file_name)
+            # plt.show()
             fig.savefig(os.path.join(results_dir, 'figs', data_set_name, fig_file_name))
             plt.close()
+
 
         # df = pd.read_csv(file, index_col=None, header=0)
         # grouped = df.groupby(df.c)
