@@ -4,11 +4,9 @@ import tempfile
 import itertools
 import datetime
 import pandas as pd
-import glob
 import os
 import multiprocessing as mp
 from kaizen import RandomShuffleCaseGenerator, Experiment1ResultGenerator, CSVResultWriter
-import matplotlib.pyplot as plt
 
 
 pool = mp.Pool()
