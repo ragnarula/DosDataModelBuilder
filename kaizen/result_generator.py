@@ -226,3 +226,107 @@ class Experiment1ResultGenerator:
         results = self.flat_map(self.get_cases, case_iterator)
         results = pool.imap_unordered(self.fit_predict, results)
         return results
+
+
+class Experiment2ResultGenerator:
+
+    def __init__(self, df, class_label, pos_label, kernel, params):
+        self.df = df
+        self.class_label = class_label
+        self.logger = logging.getLogger(__name__ + ":Experiment2ResultGenerator")
+        self.params = params
+        self.kernel = kernel
+        self.pos_label = pos_label
+
+    def get_cases(self, case):
+        params = (dict(zip(self.params, x)) for x in itertools.product(*self.params.values()))
+        for p in params:
+            yield (p, case)
+
+    def fit_predict(self, c_case):
+        params, case = c_case
+        ixs_train, ixs_test = case
+        num_training_samples = len(ixs_train)
+
+        self.logger.info('Starting {} sample run'.format(num_training_samples))
+
+        train = self.df.ix[ixs_train]
+        test = self.df.ix[ixs_test]
+
+        train = train.reset_index()
+        test = test.reset_index()
+
+        x_train = train.drop([self.class_label], axis=1)
+        y_train = train[self.class_label]
+
+        x_test = test.drop([self.class_label], axis=1)
+        y_test = test[self.class_label]
+
+        svc = SVC(**params, kernel=self.kernel)
+        dummy = DummyClassifier()
+        dummy.fit(x_train, y_train)
+        p_dummy = dummy.predict(x_test)
+
+        kf = KFold(n_splits=10)
+
+        y_val = []
+        p_val = []
+        cv_y_train = []
+        cv_p_train = []
+
+        for fold_idx_train, fold_idx_val in kf.split(train):
+            fold_x_train = x_train.ix[fold_idx_train]
+            fold_y_train = y_train.ix[fold_idx_train]
+
+            fold_x_val = x_train.ix[fold_idx_val]
+            y_val.extend(y_train.ix[fold_idx_val])
+
+            svc.fit(fold_x_train, fold_y_train)
+
+            fold_p_train = svc.predict(fold_x_train)
+
+            cv_p_train.extend(fold_p_train)
+            cv_y_train.extend(fold_y_train)
+
+            p_val.extend(svc.predict(fold_x_val))
+
+        svc.fit(x_train, y_train)
+        p_test = pd.Series(svc.predict(x_test))
+
+        return self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, p_dummy, params)
+
+    def extract_cv_metrics(self, y_train, p_train, y_val, p_val, y_test, p_test, p_dummy, params):
+
+        res = {
+            "train_accuracy": accuracy_score(y_train, p_train),
+            "train_f1": f1_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_precision": precision_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_recall": recall_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "val_accuracy": accuracy_score(y_val, p_val),
+            "val_f1": f1_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_precision": precision_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_recall": recall_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "test_accuracy": accuracy_score(y_test, p_test),
+            "test_f1": f1_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_precision": precision_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_recall": recall_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "dummy_accuracy": accuracy_score(y_test, p_dummy),
+            "dummy_f1": f1_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_precision": precision_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_recall": recall_score(y_test, p_dummy, average='macro', pos_label=self.pos_label)
+        }
+        res.update(params)
+        return res
+
+    @staticmethod
+    def flat_map(f, items):
+        return itertools.chain.from_iterable(map(f, items))
+
+    @staticmethod
+    def pool_flat_map(pool, f, items):
+        return itertools.chain.from_iterable(pool.imap_unordered(f, items))
+
+    def get_iterator(self, pool, case_iterator):
+        results = self.flat_map(self.get_cases, case_iterator)
+        results = pool.imap_unordered(self.fit_predict, results)
+        return results
