@@ -40,6 +40,38 @@ class AscendingSizeCaseGenerator:
         cs = np.arange(self.lower, self.limit, self.step)
 
         for c in cs:
-            for i in range(self.repetitions):
+            for _ in range(self.repetitions):
                 samples_train, samples_test = self.sample_data(c)
                 yield samples_train, samples_test
+
+
+class RandomShuffleCaseGenerator:
+
+    def __init__(self, df, class_label, repetitions=1, test_split=0.3):
+        self.df = df
+        self.class_label = class_label
+        self.repetitions = repetitions
+        self.test_split = test_split
+
+    def sample_data(self):
+
+        grouped = self.df.groupby(self.class_label).groups
+
+        samples_train = []
+        samples_test = []
+
+        for group, ixs in grouped.items():
+
+            group_sample_size = int((1 - self.test_split) * len(ixs.values))
+            group_train_samples = np.random.choice(ixs.values, group_sample_size, replace=False)
+            samples_train.extend(group_train_samples)
+
+            ixs_test = list(set(ixs.values) - set(group_train_samples))
+            samples_test.extend(ixs_test)
+
+        return samples_train, samples_test
+
+    def get_iterator(self):
+
+        for _ in range(self.repetitions):
+            yield self.sample_data()
