@@ -43,7 +43,7 @@ def main():
     # logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", help="The name of the python module with a pipelines object")
-    parser.add_argument("--reps", help="The number of times to repeat each shuffle", default=1)
+    parser.add_argument("--reps", help="The number of times to repeat each shuffle", default=1, type=int)
     parser.add_argument("data", help="The path to the input data")
     parser.add_argument("results_dir", help="The path to output the results in")
 
