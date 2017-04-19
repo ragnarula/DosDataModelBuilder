@@ -51,3 +51,52 @@ class CSVPerPipelineResultWriter:
             self.flush()
 
         self.flush(force=True)
+
+
+class CSVResultWriter:
+
+    def __init__(self, result_iterator, results_dir, prefix, cache_limit=10):
+        self.logger = logging.getLogger(__name__ + ':CSVResultWriter')
+        self.results = result_iterator
+        self.cache = {}
+        self.results_dir = results_dir
+        self.prefix = prefix
+        self.cache_limit = cache_limit
+        self.create_result_dir()
+
+    def create_result_dir(self):
+
+        if not os.path.exists(self.results_dir):
+            self.logger.info('Creating results dir')
+            os.mkdir(self.results_dir, mode=0o755)
+        else:
+            self.logger.error('Results path already existed')
+            raise RuntimeError('Results dir already exists')
+
+    def flush(self, force=False):
+
+        for group, res in self.cache.items():
+
+            if len(res) >= self.cache_limit or force:
+                header = True
+                file_path = os.path.join(self.results_dir, "{}_{}.csv".format(self.prefix, group))
+
+                self.logger.info('Flushing results to file {}'.format(file_path))
+
+                if os.path.exists(file_path):
+                    header = False
+
+                with(open(file_path, "a+")) as f:
+                    df = pd.DataFrame(res)
+                    df.to_csv(f, header=header, index=False)
+
+                self.cache[group] = []
+
+    def write(self):
+
+        for result in self.results:
+            group = result['group']
+            self.cache.setdefault(group, []).append(result)
+            self.flush()
+
+        self.flush(force=True)

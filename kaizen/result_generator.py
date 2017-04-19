@@ -1,13 +1,13 @@
 import logging
 import itertools
 import warnings
-import multiprocessing as mp
 warnings.filterwarnings("ignore")
 import pandas as pd
 from sklearn.model_selection import KFold
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.dummy import DummyClassifier
 
 
 class MultiPipelineResultGenerator:
@@ -103,7 +103,12 @@ class Experiment1ResultGenerator:
         self.kernel = kernel
         self.pos_label = pos_label
 
-    def fit_predict(self, case):
+    def get_cases(self, case):
+        for c in self.c_values:
+            yield (c, case)
+
+    def fit_predict(self, c_case):
+        c, case = c_case
         ixs_train, ixs_test = case
         num_training_samples = len(ixs_train)
 
@@ -121,53 +126,62 @@ class Experiment1ResultGenerator:
         x_test = test.drop([self.class_label], axis=1)
         y_test = test[self.class_label]
 
-        for c in self.c_values:
-            svc = SVC(C=c, kernel=self.kernel)
-            kf = KFold(n_splits=10)
+        svc = SVC(C=c, kernel=self.kernel)
+        dummy = DummyClassifier()
+        dummy.fit(x_train, y_train)
+        p_dummy = dummy.predict(x_test)
 
-            y_val = []
-            p_val = []
-            cv_y_train = []
-            cv_p_train = []
+        kf = KFold(n_splits=10)
 
-            for fold_idx_train, fold_idx_val in kf.split(train):
-                fold_x_train = x_train.ix[fold_idx_train]
-                fold_y_train = y_train.ix[fold_idx_train]
+        y_val = []
+        p_val = []
+        cv_y_train = []
+        cv_p_train = []
 
-                fold_x_val = x_train.ix[fold_idx_val]
-                y_val.extend(y_train.ix[fold_idx_val])
+        for fold_idx_train, fold_idx_val in kf.split(train):
+            fold_x_train = x_train.ix[fold_idx_train]
+            fold_y_train = y_train.ix[fold_idx_train]
 
-                svc.fit(fold_x_train, fold_y_train)
+            fold_x_val = x_train.ix[fold_idx_val]
+            y_val.extend(y_train.ix[fold_idx_val])
 
-                fold_p_train = svc.predict(fold_x_train)
+            svc.fit(fold_x_train, fold_y_train)
 
-                cv_p_train.extend(fold_p_train)
-                cv_y_train.extend(fold_y_train)
+            fold_p_train = svc.predict(fold_x_train)
 
-                p_val.extend(svc.predict(fold_x_val))
+            cv_p_train.extend(fold_p_train)
+            cv_y_train.extend(fold_y_train)
 
-            svc.fit(x_train, y_train)
-            p_test = pd.Series(svc.predict(x_test))
+            p_val.extend(svc.predict(fold_x_val))
 
-            yield self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, c)
+        svc.fit(x_train, y_train)
+        p_test = pd.Series(svc.predict(x_test))
 
-    def extract_cv_metrics(self, y_train, p_train, y_val, p_val, y_test, p_test, c):
+        return self.extract_cv_metrics(cv_y_train, cv_p_train, y_val, p_val, y_test, p_test, p_dummy, c)
 
-        return {
+    def extract_cv_metrics(self, y_train, p_train, y_val, p_val, y_test, p_test, p_dummy, c):
+
+        res = {
             "train_accuracy": accuracy_score(y_train, p_train),
-            "train_f1": f1_score(y_train, p_train, pos_label=self.pos_label),
-            "train_precision": precision_score(y_train, p_train, pos_label=self.pos_label),
-            "train_recall": recall_score(y_train, p_train, pos_label=self.pos_label),
+            "train_f1": f1_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_precision": precision_score(y_train, p_train, average='macro', pos_label=self.pos_label),
+            "train_recall": recall_score(y_train, p_train, average='macro', pos_label=self.pos_label),
             "val_accuracy": accuracy_score(y_val, p_val),
-            "val_f1": f1_score(y_val, p_val, pos_label=self.pos_label),
-            "val_precision": precision_score(y_val, p_val, pos_label=self.pos_label),
-            "val_recall": recall_score(y_val, p_val, pos_label=self.pos_label),
+            "val_f1": f1_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_precision": precision_score(y_val, p_val, average='macro', pos_label=self.pos_label),
+            "val_recall": recall_score(y_val, p_val, average='macro', pos_label=self.pos_label),
             "test_accuracy": accuracy_score(y_test, p_test),
-            "test_f1": f1_score(y_test, p_test, pos_label=self.pos_label),
-            "test_precision": precision_score(y_test, p_test, pos_label=self.pos_label),
-            "test_recall": recall_score(y_test, p_test, pos_label=self.pos_label),
+            "test_f1": f1_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_precision": precision_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "test_recall": recall_score(y_test, p_test, average='macro', pos_label=self.pos_label),
+            "dummy_accuracy": accuracy_score(y_test, p_dummy),
+            "dummy_f1": f1_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_precision": precision_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
+            "dummy_recall": recall_score(y_test, p_dummy, average='macro', pos_label=self.pos_label),
             "c": c
         }
+        # print(res)
+        return res
 
     @classmethod
     def extract_metrics(cls, result):
@@ -209,6 +223,6 @@ class Experiment1ResultGenerator:
         return itertools.chain.from_iterable(pool.imap_unordered(f, items))
 
     def get_iterator(self, pool, case_iterator):
-        results = self.pool_flat_map(pool, self.fit_predict, case_iterator)
-        # results = map(self.extract_metrics, results)
+        results = self.flat_map(self.get_cases, case_iterator)
+        results = pool.imap_unordered(self.fit_predict, results)
         return results
