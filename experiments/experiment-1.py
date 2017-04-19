@@ -10,7 +10,7 @@ from kaizen import RandomShuffleCaseGenerator, Experiment1ResultGenerator, CSVRe
 
 
 pool = mp.Pool()
-c_values = [x ** y for x, y in zip([2] * 31, range(-15, 3, 1))]
+c_values = [x ** y for x, y in zip([2] * 31, range(-15, 9, 1))]
 prefix = 'experiment-1'
 
 # From http://stackoverflow.com/questions/2113427/determining-whether-a-directory-is-writeable
