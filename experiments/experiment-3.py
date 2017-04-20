@@ -12,8 +12,8 @@ from kaizen import AscendingSizeCaseGenerator, Experiment3ResultGenerator, CSVRe
 pool = mp.Pool()
 
 params = {
-    'C': [4096],
-    'gamma': [0.00390625]
+    'svc__C': [4096],
+    'svc__gamma': [0.00390625]
 }
 
 prefix = 'experiment-3'
