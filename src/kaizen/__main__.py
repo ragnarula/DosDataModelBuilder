@@ -1,11 +1,13 @@
 import argparse
 import errno
 import importlib
+import logging
 import os
 import tempfile
+
 import pandas as pd
-import logging
-import kaizen
+
+from src import kaizen
 
 
 # From http://stackoverflow.com/questions/2113427/determining-whether-a-directory-is-writeable

@@ -1,9 +1,10 @@
-from kaizen import MultiPipelineResultGenerator
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
+import unittest
 
 import pandas as pd
-import unittest
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+
+from src.kaizen import MultiPipelineResultGenerator
 
 
 class MultiPipelineResultGeneratorTest(unittest.TestCase):

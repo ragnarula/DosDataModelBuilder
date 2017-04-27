@@ -1,6 +1,8 @@
 import unittest
-from kaizen import AscendingSizeCaseGenerator
+
 import pandas as pd
+
+from src.kaizen import AscendingSizeCaseGenerator
 
 
 class AscendingSizeCaseGeneratorTest(unittest.TestCase):

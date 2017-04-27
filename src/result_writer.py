@@ -69,9 +69,9 @@ class CSVResultWriter:
         if not os.path.exists(self.results_dir):
             self.logger.info('Creating results dir')
             os.mkdir(self.results_dir, mode=0o755)
-        else:
-            self.logger.error('Results path already existed')
-            raise RuntimeError('Results dir already exists')
+        # else:
+        #     self.logger.error('Results path already existed')
+        #     raise RuntimeError('Results dir already exists')
 
     def flush(self, force=False):
 
