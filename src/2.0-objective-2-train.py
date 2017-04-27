@@ -13,10 +13,14 @@ from src.case_generator import RandomShuffleCaseGenerator
 from src.result_writer import CSVResultWriter
 
 pool = mp.Pool()
+
 params_linear = {
-    'svc__C': [x ** y for x, y in zip([2] * 31, range(-15, 15, 1))],
+    'svc__C': [x ** y for x, y in zip([2] * 31, range(-15, 0, 1))],
 }
 
+params_linear_norm = {
+    'svc__C': [x ** y for x, y in zip([2] * 31, range(-15, 8, 1))],
+}
 params_rbf = {
     'svc__C': [x ** y for x, y in zip([2] * 31, range(-15, 15, 1))],
     'svc__gamma': [x ** y for x, y in zip([2] * 31, range(-15, 16, 1))]
@@ -99,8 +103,8 @@ def main():
     # results_dir = os.path.join(args.results_dir, "{}_{}".format(prefix, datetime.datetime.utcnow()).replace(' ', '_'))
 
     run_experiment(args.data, args.reps, 'linear', params_linear, args.results_dir, prefix_linear, scaler=False)
-    run_experiment(args.data, args.reps, 'linear', params_linear, args.results_dir, prefix_scaled, scaler=True)
-    run_experiment(args.data, args.reps, 'linear', params_linear, args.results_dir, prefix_rbf, scaler=True)
+    run_experiment(args.data, args.reps, 'linear', params_linear_norm, args.results_dir, prefix_scaled, scaler=True)
+    run_experiment(args.data, args.reps, 'rbf', params_rbf, args.results_dir, prefix_rbf, scaler=True)
 
     # all_data = pd.read_csv(args.data)
     # normal_flood_data = all_data[all_data.Class != 'slowloris']
