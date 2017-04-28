@@ -1,9 +1,7 @@
 import argparse
-import datetime
 import errno
 import itertools
 import multiprocessing as mp
-import os
 import tempfile
 
 import pandas as pd
@@ -100,33 +98,9 @@ def main():
         print("Results directory {} is not writeable".format(args.results_dir))
         return
 
-    # results_dir = os.path.join(args.results_dir, "{}_{}".format(prefix, datetime.datetime.utcnow()).replace(' ', '_'))
-
     run_experiment(args.data, args.reps, 'linear', params_linear, args.results_dir, prefix_linear, scaler=False)
     run_experiment(args.data, args.reps, 'linear', params_linear_norm, args.results_dir, prefix_scaled, scaler=True)
     run_experiment(args.data, args.reps, 'rbf', params_rbf, args.results_dir, prefix_rbf, scaler=True)
-
-    # all_data = pd.read_csv(args.data)
-    # normal_flood_data = all_data[all_data.Class != 'slowloris']
-    # normal_slowloris_data = all_data[all_data.Class != 'flooding']
-    # flooding_slowloris_data = all_data[all_data.Class != 'normal']
-    #
-    # all_data_results = get_result_iterator('all', all_data, 'normal', args.reps, params_linear)
-    # normal_flood_results = get_result_iterator('normal_flood', normal_flood_data, 'flooding', args.reps)
-    # normal_slowloris_results = get_result_iterator('normal_slowloris', normal_slowloris_data, 'slowloris', args.reps)
-    # flooding_slowloris_results = get_result_iterator('flooding_slowloris', flooding_slowloris_data, 'flooding', args.reps)
-    #
-    # chain = itertools.chain.from_iterable([
-    #     all_data_results,
-    #     normal_flood_results,
-    #     normal_slowloris_results,
-    #     flooding_slowloris_results
-    # ])
-    #
-    # chain = map(log, chain)
-    #
-    # result_writer = CSVResultWriter(chain, results_dir, prefix)
-    # result_writer.write()
 
 
 if __name__ == "__main__":
